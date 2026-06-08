@@ -1,0 +1,140 @@
+{% extends 'base.html' %}
+{% block title %}Categorias{% endblock %}
+{% block page_title %}Categorias{% endblock %}
+{% block topbar_actions %}
+  <button class="btn btn-primary btn-sm" onclick="openModal()">
+    <i data-lucide="plus"></i> Nova categoria
+  </button>
+{% endblock %}
+
+{% block content %}
+{% set income_cats  = categories | selectattr('type','eq','income')  | list %}
+{% set expense_cats = categories | selectattr('type','eq','expense') | list %}
+
+<!-- INCOME -->
+<div class="section-header">
+  <div>
+    <div class="section-title" style="color:var(--green-lt)">Receitas</div>
+    <div class="section-sub">{{ income_cats|length }} categori{{ 'a' if income_cats|length == 1 else 'as' }}</div>
+  </div>
+</div>
+<div class="cats-grid" style="margin-bottom:32px">
+  {% for c in income_cats %}
+  <div class="cat-card">
+    <div class="cat-dot" style="background:{{ c.color }}">
+      <i data-lucide="{{ c.icon }}"></i>
+    </div>
+    <div class="cat-info">
+      <div class="cat-name">{{ c.name }}</div>
+      <div class="cat-type">Receita</div>
+    </div>
+    <div class="cat-actions">
+      <form method="POST" action="{{ url_for('main.delete_category', cat_id=c.id) }}"
+            onsubmit="return confirm('Remover categoria « {{ c.name }} »?')">
+        <button type="submit" class="btn btn-ghost btn-icon btn-sm" style="color:var(--muted)" title="Excluir">
+          <i data-lucide="trash-2"></i>
+        </button>
+      </form>
+    </div>
+  </div>
+  {% else %}
+  <div style="color:var(--muted);font-size:14px;padding:12px 0">Nenhuma categoria de receita.</div>
+  {% endfor %}
+</div>
+
+<!-- EXPENSE -->
+<div class="section-header">
+  <div>
+    <div class="section-title" style="color:#ff6b6b">Despesas</div>
+    <div class="section-sub">{{ expense_cats|length }} categori{{ 'a' if expense_cats|length == 1 else 'as' }}</div>
+  </div>
+</div>
+<div class="cats-grid">
+  {% for c in expense_cats %}
+  <div class="cat-card">
+    <div class="cat-dot" style="background:{{ c.color }}">
+      <i data-lucide="{{ c.icon }}"></i>
+    </div>
+    <div class="cat-info">
+      <div class="cat-name">{{ c.name }}</div>
+      <div class="cat-type">Despesa</div>
+    </div>
+    <div class="cat-actions">
+      <form method="POST" action="{{ url_for('main.delete_category', cat_id=c.id) }}"
+            onsubmit="return confirm('Remover categoria « {{ c.name }} »?')">
+        <button type="submit" class="btn btn-ghost btn-icon btn-sm" style="color:var(--muted)" title="Excluir">
+          <i data-lucide="trash-2"></i>
+        </button>
+      </form>
+    </div>
+  </div>
+  {% else %}
+  <div style="color:var(--muted);font-size:14px;padding:12px 0">Nenhuma categoria de despesa.</div>
+  {% endfor %}
+</div>
+
+<!-- MODAL: nova categoria -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Nova Categoria</span>
+      <button class="btn btn-ghost btn-icon btn-sm" onclick="closeModal()"><i data-lucide="x"></i></button>
+    </div>
+    <form method="POST" action="{{ url_for('main.add_category') }}">
+      <div class="form-group">
+        <label class="form-label">Tipo *</label>
+        <div class="type-toggle">
+          <button type="button" class="type-btn income active" onclick="setModalType('income')">
+            <i data-lucide="trending-up"></i> Receita
+          </button>
+          <button type="button" class="type-btn expense" onclick="setModalType('expense')">
+            <i data-lucide="trending-down"></i> Despesa
+          </button>
+        </div>
+        <input type="hidden" name="type" id="modal-type" value="income">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Nome *</label>
+        <input type="text" name="name" class="form-control" placeholder="Ex: Alimentação" required>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Ícone</label>
+          <select name="icon" class="form-control">
+            {% for ico in ['tag','home','car','utensils','heart','book','briefcase','laptop',
+                           'shopping-bag','music','film','coffee','zap','star','gift','smile'] %}
+            <option value="{{ ico }}">{{ ico }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Cor</label>
+          <input type="color" name="color" class="form-control" value="#27AE60"
+                 style="padding:4px 8px;height:42px;cursor:pointer">
+        </div>
+      </div>
+      <div class="form-actions">
+        <button type="button" class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+        <button type="submit" class="btn btn-primary"><i data-lucide="plus"></i> Criar categoria</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function openModal()  { document.getElementById('modal').classList.add('open'); }
+  function closeModal() { document.getElementById('modal').classList.remove('open'); }
+
+  document.getElementById('modal').addEventListener('click', e => {
+    if (e.target === e.currentTarget) closeModal();
+  });
+
+  function setModalType(t) {
+    document.getElementById('modal-type').value = t;
+    document.querySelectorAll('.modal .type-btn').forEach(b => b.classList.remove('active'));
+    document.querySelector('.modal .type-btn.' + t).classList.add('active');
+  }
+</script>
+{% endblock %}

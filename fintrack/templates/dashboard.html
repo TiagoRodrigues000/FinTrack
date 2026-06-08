@@ -1,0 +1,179 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+{% block topbar_actions %}
+  <a href="{{ url_for('main.add_transaction') }}" class="btn btn-primary btn-sm">
+    <i data-lucide="plus"></i> Nova transação
+  </a>
+{% endblock %}
+
+{% block content %}
+<!-- STATS -->
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-icon green"><i data-lucide="trending-up"></i></div>
+    <div>
+      <div class="stat-label">Receitas — {{ today.strftime('%b %Y') }}</div>
+      <div class="stat-value income">R$ {{ '%.2f'|format(income)|replace('.',',') }}</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon red"><i data-lucide="trending-down"></i></div>
+    <div>
+      <div class="stat-label">Despesas — {{ today.strftime('%b %Y') }}</div>
+      <div class="stat-value expense">R$ {{ '%.2f'|format(expense)|replace('.',',') }}</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon {{ 'green' if balance >= 0 else 'red' }}"><i data-lucide="wallet"></i></div>
+    <div>
+      <div class="stat-label">Saldo do mês</div>
+      <div class="stat-value {{ 'positive' if balance >= 0 else 'negative' }}">
+        {{ '-' if balance < 0 else '' }}R$ {{ '%.2f'|format(balance|abs)|replace('.',',') }}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- CHARTS -->
+<div class="charts-grid">
+  <div class="chart-card">
+    <div class="chart-header">
+      <div>
+        <div class="chart-title">Evolução Financeira</div>
+        <div class="chart-sub">Últimos 6 meses</div>
+      </div>
+    </div>
+    <div class="chart-wrap">
+      <canvas id="barChart"></canvas>
+    </div>
+  </div>
+  <div class="chart-card">
+    <div class="chart-header">
+      <div>
+        <div class="chart-title">Gastos por Categoria</div>
+        <div class="chart-sub">{{ today.strftime('%B %Y') }}</div>
+      </div>
+    </div>
+    <div class="chart-wrap" style="height:180px">
+      <canvas id="pieChart"></canvas>
+    </div>
+    <div id="pie-legend" style="margin-top:12px;display:flex;flex-wrap:wrap;gap:8px"></div>
+  </div>
+</div>
+
+<!-- RECENT TRANSACTIONS -->
+<div class="table-card">
+  <div class="table-header">
+    <span class="table-title">Transações Recentes</span>
+    <a href="{{ url_for('main.transactions') }}" class="btn btn-ghost btn-sm">Ver todas <i data-lucide="arrow-right"></i></a>
+  </div>
+  {% if recent %}
+  <table>
+    <thead>
+      <tr>
+        <th>Descrição</th>
+        <th>Categoria</th>
+        <th>Data</th>
+        <th>Tipo</th>
+        <th class="text-right">Valor</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for tx in recent %}
+      <tr>
+        <td class="td-desc">{{ tx.description }}</td>
+        <td>
+          {% if tx.category %}
+          <span style="display:inline-flex;align-items:center;gap:6px">
+            <span style="width:8px;height:8px;border-radius:50%;background:{{ tx.category.color }};display:inline-block"></span>
+            <span style="font-size:13px;color:var(--muted)">{{ tx.category.name }}</span>
+          </span>
+          {% else %}<span style="color:var(--muted2);font-size:13px">—</span>{% endif %}
+        </td>
+        <td style="color:var(--muted);font-size:13px">{{ tx.date.strftime('%d/%m/%Y') }}</td>
+        <td><span class="badge badge-{{ tx.type }}">{{ 'Receita' if tx.type == 'income' else 'Despesa' }}</span></td>
+        <td class="text-right amount-{{ tx.type }}">
+          {{ '+' if tx.type == 'income' else '-' }}R$ {{ '%.2f'|format(tx.amount)|replace('.',',') }}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state">
+    <i data-lucide="inbox"></i>
+    <h3>Nenhuma transação ainda</h3>
+    <p>Adicione sua primeira receita ou despesa.</p>
+    <a href="{{ url_for('main.add_transaction') }}" class="btn btn-primary mt-4">
+      <i data-lucide="plus"></i> Adicionar transação
+    </a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const monthsData = {{ months_data|safe }};
+const catData    = {{ cat_data|safe }};
+
+// Chart defaults
+Chart.defaults.color = '#6B8FAE';
+Chart.defaults.font.family = "'DM Sans', sans-serif";
+
+// Bar chart
+const barCtx = document.getElementById('barChart').getContext('2d');
+new Chart(barCtx, {
+  type: 'bar',
+  data: {
+    labels: monthsData.map(d => d.month),
+    datasets: [
+      { label: 'Receitas', data: monthsData.map(d => d.income),
+        backgroundColor: 'rgba(39,174,96,.7)', borderRadius: 6, borderSkipped: false },
+      { label: 'Despesas', data: monthsData.map(d => d.expense),
+        backgroundColor: 'rgba(231,76,60,.7)', borderRadius: 6, borderSkipped: false },
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { position: 'top', labels: { usePointStyle: true, padding: 16, font: { size: 12 } } } },
+    scales: {
+      x: { grid: { display: false }, border: { display: false } },
+      y: { grid: { color: 'rgba(30,63,94,.5)' }, border: { display: false },
+           ticks: { callback: v => 'R$' + v.toLocaleString('pt-BR') } }
+    }
+  }
+});
+
+// Pie chart
+if (catData.length > 0) {
+  const pieCtx = document.getElementById('pieChart').getContext('2d');
+  new Chart(pieCtx, {
+    type: 'doughnut',
+    data: {
+      labels: catData.map(d => d.name),
+      datasets: [{ data: catData.map(d => d.value),
+        backgroundColor: catData.map(d => d.color + 'CC'),
+        borderColor: catData.map(d => d.color),
+        borderWidth: 2, hoverOffset: 6 }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, cutout: '65%',
+      plugins: { legend: { display: false } }
+    }
+  });
+  // Custom legend
+  const leg = document.getElementById('pie-legend');
+  catData.forEach(d => {
+    const item = document.createElement('div');
+    item.style.cssText = 'display:flex;align-items:center;gap:5px;font-size:12px;color:var(--muted)';
+    item.innerHTML = `<span style="width:10px;height:10px;border-radius:50%;background:${d.color};flex-shrink:0"></span>${d.name}`;
+    leg.appendChild(item);
+  });
+} else {
+  document.getElementById('pieChart').parentElement.innerHTML =
+    '<div style="height:180px;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:14px">Nenhuma despesa este mês</div>';
+}
+</script>
+{% endblock %}

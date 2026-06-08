@@ -1,0 +1,150 @@
+{% extends 'base.html' %}
+{% block title %}Transações{% endblock %}
+{% block page_title %}Transações{% endblock %}
+{% block topbar_actions %}
+  <a href="{{ url_for('main.add_transaction') }}" class="btn btn-primary btn-sm">
+    <i data-lucide="plus"></i> Nova transação
+  </a>
+{% endblock %}
+
+{% block content %}
+<!-- FILTERS -->
+<form method="GET" class="filters-bar">
+  <div class="filter-group" style="flex:2;min-width:180px">
+    <label class="filter-label">Buscar</label>
+    <input type="text" name="search" class="filter-control" placeholder="Descrição..." value="{{ filters.search }}">
+  </div>
+  <div class="filter-group">
+    <label class="filter-label">Tipo</label>
+    <select name="type" class="filter-control">
+      <option value="">Todos</option>
+      <option value="income"  {% if filters.type == 'income'  %}selected{% endif %}>Receitas</option>
+      <option value="expense" {% if filters.type == 'expense' %}selected{% endif %}>Despesas</option>
+    </select>
+  </div>
+  <div class="filter-group">
+    <label class="filter-label">Categoria</label>
+    <select name="category" class="filter-control">
+      <option value="">Todas</option>
+      {% for c in categories %}
+      <option value="{{ c.id }}" {% if filters.category == c.id %}selected{% endif %}>{{ c.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="filter-group">
+    <label class="filter-label">Mês</label>
+    <select name="month" class="filter-control">
+      <option value="">Todos</option>
+      {% for m in range(1,13) %}
+      <option value="{{ m }}" {% if filters.month == m %}selected{% endif %}>
+        {{ ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'][m-1] }}
+      </option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="filter-group">
+    <label class="filter-label">Ano</label>
+    <select name="year" class="filter-control">
+      <option value="">Todos</option>
+      {% for y in years %}
+      <option value="{{ y }}" {% if filters.year == y %}selected{% endif %}>{{ y }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div style="display:flex;gap:8px;align-items:flex-end">
+    <button type="submit" class="btn btn-primary btn-sm"><i data-lucide="search"></i> Filtrar</button>
+    <a href="{{ url_for('main.transactions') }}" class="btn btn-ghost btn-sm"><i data-lucide="x"></i></a>
+  </div>
+</form>
+
+<!-- TABLE -->
+<div class="table-card">
+  <div class="table-header">
+    <span class="table-title">
+      {{ transactions.total }} transaç{{ 'ão' if transactions.total == 1 else 'ões' }}
+    </span>
+  </div>
+  {% if transactions.items %}
+  <table>
+    <thead>
+      <tr>
+        <th>Descrição</th>
+        <th>Categoria</th>
+        <th>Data</th>
+        <th>Tipo</th>
+        <th class="text-right">Valor</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for tx in transactions.items %}
+      <tr>
+        <td class="td-desc">
+          {{ tx.description }}
+          {% if tx.notes %}<div class="tx-notes">{{ tx.notes[:60] }}{{ '…' if tx.notes|length > 60 }}</div>{% endif %}
+        </td>
+        <td>
+          {% if tx.category %}
+          <span style="display:inline-flex;align-items:center;gap:6px">
+            <span style="width:8px;height:8px;border-radius:50%;background:{{ tx.category.color }};display:inline-block;flex-shrink:0"></span>
+            <span style="font-size:13px;color:var(--muted)">{{ tx.category.name }}</span>
+          </span>
+          {% else %}<span style="color:var(--muted2);font-size:13px">—</span>{% endif %}
+        </td>
+        <td style="color:var(--muted);font-size:13px;white-space:nowrap">{{ tx.date.strftime('%d/%m/%Y') }}</td>
+        <td><span class="badge badge-{{ tx.type }}">{{ 'Receita' if tx.type == 'income' else 'Despesa' }}</span></td>
+        <td class="text-right amount-{{ tx.type }}" style="white-space:nowrap">
+          {{ '+' if tx.type == 'income' else '-' }}R$ {{ '%.2f'|format(tx.amount)|replace('.',',') }}
+        </td>
+        <td>
+          <div class="tx-actions">
+            <a href="{{ url_for('main.edit_transaction', tx_id=tx.id) }}" class="btn btn-ghost btn-icon btn-sm" title="Editar">
+              <i data-lucide="pencil"></i>
+            </a>
+            <form method="POST" action="{{ url_for('main.delete_transaction', tx_id=tx.id) }}"
+                  onsubmit="return confirm('Remover esta transação?')">
+              <button type="submit" class="btn btn-ghost btn-icon btn-sm" title="Excluir" style="color:var(--red)">
+                <i data-lucide="trash-2"></i>
+              </button>
+            </form>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <!-- PAGINATION -->
+  {% if transactions.pages > 1 %}
+  <div class="pagination">
+    <a href="{{ url_for('main.transactions', page=transactions.prev_num, **filters) if transactions.has_prev else '#' }}"
+       class="page-link {{ 'disabled' if not transactions.has_prev }}">
+      <i data-lucide="chevron-left" style="width:14px;height:14px"></i>
+    </a>
+    {% for p in transactions.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+      {% if p %}
+        <a href="{{ url_for('main.transactions', page=p, **filters) }}"
+           class="page-link {{ 'active' if p == transactions.page }}">{{ p }}</a>
+      {% else %}
+        <span class="page-link disabled">…</span>
+      {% endif %}
+    {% endfor %}
+    <a href="{{ url_for('main.transactions', page=transactions.next_num, **filters) if transactions.has_next else '#' }}"
+       class="page-link {{ 'disabled' if not transactions.has_next }}">
+      <i data-lucide="chevron-right" style="width:14px;height:14px"></i>
+    </a>
+  </div>
+  {% endif %}
+
+  {% else %}
+  <div class="empty-state">
+    <i data-lucide="search-x"></i>
+    <h3>Nenhuma transação encontrada</h3>
+    <p>Tente outros filtros ou adicione uma nova transação.</p>
+    <a href="{{ url_for('main.add_transaction') }}" class="btn btn-primary mt-4">
+      <i data-lucide="plus"></i> Adicionar transação
+    </a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
