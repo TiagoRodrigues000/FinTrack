@@ -17,9 +17,8 @@
 <!-- SIDEBAR -->
 <aside class="sidebar" id="sidebar">
   <div class="sidebar-logo">
-    <div class="logo-mark">FT</div>
-    <span class="logo-text">FinTrack</span>
-  </div>
+  <img src="{{ url_for('static', filename='img/logo-dark.png') }}" alt="FinTrack" class="sidebar-logo-img">
+</div>
 
   <nav class="sidebar-nav">
     <a href="{{ url_for('main.dashboard') }}"    class="nav-item {% if request.endpoint == 'main.dashboard'    %}active{% endif %}">
